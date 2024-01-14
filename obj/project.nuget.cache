@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "STI9Vyh61d4VGqDxGanKNnR8N+kLvSV4kcPYeet52HFRU9pOsgSuXLn1/S8KsJ/VVENh1QVm7adINaEog05Mjw==",
+  "success": true,
+  "projectFilePath": "/home/iselein/Documents/projects/graphalgos/graphalgos.csproj",
+  "expectedPackageFiles": [
+    "/home/iselein/.nuget/packages/microsoft.aspnetcore.app.ref/8.0.0/microsoft.aspnetcore.app.ref.8.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}
