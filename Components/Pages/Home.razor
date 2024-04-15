@@ -1,7 +1,148 @@
 ﻿@page "/"
+@rendermode InteractiveServer
+@inject IJSRuntime JS
+
+@using Excubo.Blazor.Canvas
 
 <PageTitle>Home</PageTitle>
 
-<h1>Hello, world!</h1>
+<header class="top">
+    <i class="fa-solid fa-binoculars"></i>
+    <span class="title">Graphalgos</span>
+</header>
 
-Welcome to your new app.
+<main>
+    <div class="canvas-container">
+        <button class="main-button" @onclick="Clear">Clear</button>
+        <canvas @ref="canvas" id="canvas" @onmouseleave="MouseUp"
+            @onmousedown="MouseDown" @onmouseup="MouseUp" @onmousemove="MouseMove" 
+        ></canvas>
+    </div>
+    <div class="side-container">
+        <div class="side-box">
+            <div class="title">Toolbox</div>
+            <div class="subtitle">Add nodes and edges to the graph.</div>
+
+            <div class="content">
+                buttons and stuff
+            </div>
+        </div>
+        <div class="spacer"></div>
+        <div class="side-box">
+            <div class="title">Settings</div>
+            <div class="subtitle">Set stuff. Colors maybe?</div>
+
+            <div class="content">
+                settings
+            </div>
+        </div>
+    </div>
+</main>
+
+@code {
+    // private Canvas? canvas;
+    private ElementReference canvas;
+    private Excubo.Blazor.Canvas.Contexts.Context2D? ctx;
+    private bool mouseDown = false;
+    private double prevX;
+    private double prevY;
+    private double canvasX;
+    private double canvasY;
+    private double mouseX;
+    private double mouseY;
+    private bool render_required = true;
+    private bool textOn = true;
+    private double CANVAS_WIDTH;
+    private double CANVAS_HEIGHT;
+
+    private class Position {
+        public double Left { get; set; }
+        public double Top { get; set; }
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender) {
+        if (firstRender) {
+            ctx = await JS.GetContext2DAsync(canvas);
+
+            await ctx.GlobalCompositeOperationAsync(CompositeOperation.Source_Over);
+            await ctx.LineWidthAsync(5);
+            await ctx.LineJoinAsync(LineJoin.Round);
+            await ctx.LineCapAsync(LineCap.Round);
+            var setCanvasSize = @"
+                let c = document.querySelector('#canvas');
+                c.width = c.offsetWidth;
+                c.height = c.offsetHeight;
+                e = { 'Left': c.width, 'Top': c.height };
+                e";
+            var q = await JS.InvokeAsync<Position>("eval", setCanvasSize);
+            (CANVAS_WIDTH, CANVAS_HEIGHT) = (q.Left, q.Top);
+            var getPosition = @"
+                let e = document.querySelector('#canvas');
+                e = e.getBoundingClientRect();
+                e = { 'Left': e.x, 'Top': e.y };
+                e";
+            var p = await JS.InvokeAsync<Position>("eval", getPosition);
+            (canvasX, canvasY) = (p.Left, p.Top);
+            await DrawText();
+        }
+        base.OnAfterRender(firstRender);
+    }
+
+    private async void Clear() {
+        await ctx!.ClearRectAsync(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    }
+
+    private void MouseDown(MouseEventArgs e) {
+        if (textOn) {
+            textOn = false;
+            Clear();
+        }
+        render_required = false;
+        mouseDown = true;
+        this.prevX = mouseX = e.ClientX - canvasX;
+        this.prevY = mouseY = e.ClientY - canvasY;
+    }
+
+    private void MouseUp() {
+        render_required = false;
+        mouseDown = false;
+    }
+
+    private async void MouseMove(MouseEventArgs e) {
+        render_required = false;
+        if (!mouseDown) {
+            return;
+        }
+        mouseX = e.ClientX - canvasX;
+        mouseY = e.ClientY - canvasY;
+        await DrawCanvasAsync(mouseX, mouseY, prevX, prevY);
+        prevX = mouseX;
+        prevY = mouseY;
+    }
+
+    async Task DrawCanvasAsync(double prev_x, double prev_y, double x, double y) {
+        await using (var ctx1 = ctx!.CreateBatch()) {
+            await ctx1.BeginPathAsync();
+            await ctx1.MoveToAsync(prev_x, prev_y);
+            await ctx1.LineToAsync(x, y);
+            await ctx1.StrokeAsync();
+        }
+    }
+
+    protected override bool ShouldRender() {
+        if (!render_required) {
+            render_required = true;
+            return false;
+        }
+        return base.ShouldRender();
+    }
+
+    private async Task DrawText() {
+        // await ctx.MoveToAsync(0, 0);
+        await ctx!.FontAsync("40px monospace");
+        await ctx!.TextAlignAsync(TextAlign.Center);
+        await ctx!.TextBaseLineAsync(TextBaseLine.Middle);
+        await ctx!.FillStyleAsync("#929292");
+        await ctx!.FillTextAsync("Not your canvas, not your graph ✍️", CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
+    }
+
+}
