@@ -24,7 +24,24 @@
             <div class="subtitle">Add nodes and edges to the graph.</div>
 
             <div class="content">
-                buttons and stuff
+                <div class="tools">
+                    @foreach (var tool in tools)
+                    {
+                        @if (tool.Equals(currTool)) {
+                            <button class="tool tool-selected">
+                                <i class=@("fa-solid fa-" + tool)></i>
+                            </button>
+                        } else {
+                            <button class="tool" @onclick="@(e => ChangeTool(tool))">
+                                <i class=@("fa-solid fa-" + tool)></i>
+                            </button>
+                        }
+                    }
+                </div>
+                <div class="slider-container"
+                    <input type="range" min="0" max="50" class="slider" id="slider" @bind="lineWidth">
+                </div>
+                <div>@lineWidth</div>
             </div>
         </div>
         <div class="spacer"></div>
@@ -40,7 +57,6 @@
 </main>
 
 @code {
-    // private Canvas? canvas;
     private ElementReference canvas;
     private Excubo.Blazor.Canvas.Contexts.Context2D? ctx;
     private bool mouseDown = false;
@@ -54,6 +70,9 @@
     private bool textOn = true;
     private double CANVAS_WIDTH;
     private double CANVAS_HEIGHT;
+    private string[] tools = ["pen", "eraser"];
+    private string currTool = "pen";
+    private int lineWidth = 5;
 
     private class Position {
         public double Left { get; set; }
@@ -64,7 +83,7 @@
             ctx = await JS.GetContext2DAsync(canvas);
 
             await ctx.GlobalCompositeOperationAsync(CompositeOperation.Source_Over);
-            await ctx.LineWidthAsync(5);
+            await ctx.LineWidthAsync(lineWidth);
             await ctx.LineJoinAsync(LineJoin.Round);
             await ctx.LineCapAsync(LineCap.Round);
             var setCanvasSize = @"
@@ -87,19 +106,28 @@
         base.OnAfterRender(firstRender);
     }
 
-    private async void Clear() {
+    private async Task Clear() {
         await ctx!.ClearRectAsync(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     }
 
-    private void MouseDown(MouseEventArgs e) {
+    private async void MouseDown(MouseEventArgs e) {
         if (textOn) {
             textOn = false;
-            Clear();
+            await Clear();
         }
         render_required = false;
         mouseDown = true;
         this.prevX = mouseX = e.ClientX - canvasX;
         this.prevY = mouseY = e.ClientY - canvasY;
+        await ctx!.LineWidthAsync(lineWidth);
+        await ctx!.BeginPathAsync();
+        await ctx!.MoveToAsync(prevX, prevY);
+        Console.WriteLine(currTool);
+        if (currTool.Equals("eraser")) {
+            await ctx!.StrokeStyleAsync("#fff");
+        } else {
+            await ctx!.StrokeStyleAsync("#000");
+        }
     }
 
     private void MouseUp() {
@@ -121,11 +149,11 @@
 
     async Task DrawCanvasAsync(double prev_x, double prev_y, double x, double y) {
         await using (var ctx1 = ctx!.CreateBatch()) {
-            await ctx1.BeginPathAsync();
-            await ctx1.MoveToAsync(prev_x, prev_y);
             await ctx1.LineToAsync(x, y);
             await ctx1.StrokeAsync();
         }
+        // await ctx!.LineToAsync(x, y);
+        // await ctx!.StrokeAsync();
     }
 
     protected override bool ShouldRender() {
@@ -143,6 +171,11 @@
         await ctx!.TextBaseLineAsync(TextBaseLine.Middle);
         await ctx!.FillStyleAsync("#929292");
         await ctx!.FillTextAsync("Not your canvas, not your graph ✍️", CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
+    }
+
+    private void ChangeTool(string tool) {
+        currTool = tool;
+        StateHasChanged();
     }
 
 }
